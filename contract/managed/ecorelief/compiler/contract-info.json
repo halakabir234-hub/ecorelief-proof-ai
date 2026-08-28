@@ -1,0 +1,288 @@
+{
+  "compiler-version": "0.31.1",
+  "language-version": "0.23.0",
+  "runtime-version": "0.16.0",
+  "circuits": [
+    {
+      "name": "applicantNullifier",
+      "pure": true,
+      "proof": false,
+      "arguments": [
+        {
+          "name": "secret",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "eventCodeHash",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "verifierCommitment",
+      "pure": true,
+      "proof": false,
+      "arguments": [
+        {
+          "name": "secret",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "submitClaim",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "claimCommitment",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "eventCodeHash",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "modelVersionHash",
+          "type": {
+            "type-name": "Bytes",
+            "length": 32
+          }
+        },
+        {
+          "name": "priorityBand",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 255
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Uint",
+        "maxval": 18446744073709551615
+      }
+    },
+    {
+      "name": "moveToReview",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "claimId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "approveClaim",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "claimId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "rejectClaim",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "claimId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "markProcessed",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "claimId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
+      "name": "verifyClaimOwnership",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+        {
+          "name": "claimId",
+          "type": {
+            "type-name": "Uint",
+            "maxval": 18446744073709551615
+          }
+        }
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    }
+  ],
+  "witnesses": [
+    {
+      "name": "getApplicantSecret",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "getVerifierSecret",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    }
+  ],
+  "contracts": [
+  ],
+  "ledger": [
+    {
+      "name": "claims",
+      "index": 0,
+      "exported": true,
+      "storage": "Map",
+      "key": {
+        "type-name": "Uint",
+        "maxval": 18446744073709551615
+      },
+      "value": {
+        "type-name": "Struct",
+        "name": "ClaimRecord",
+        "elements": [
+          {
+            "name": "status",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 255
+            }
+          },
+          {
+            "name": "claimCommitment",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "eventCodeHash",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "modelVersionHash",
+            "type": {
+              "type-name": "Bytes",
+              "length": 32
+            }
+          },
+          {
+            "name": "priorityBand",
+            "type": {
+              "type-name": "Uint",
+              "maxval": 255
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "usedNullifiers",
+      "index": 1,
+      "exported": true,
+      "storage": "Map",
+      "key": {
+        "type-name": "Bytes",
+        "length": 32
+      },
+      "value": {
+        "type-name": "Boolean"
+      }
+    },
+    {
+      "name": "claimCount",
+      "index": 2,
+      "exported": true,
+      "storage": "Counter"
+    },
+    {
+      "name": "verifierAuthority",
+      "index": 3,
+      "exported": true,
+      "storage": "Cell",
+      "type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    }
+  ]
+}

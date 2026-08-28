@@ -39,5 +39,10 @@
   },
   "overrides": {
     "smoldot": "npm:@aspect-build/empty@0.0.0"
+  },
+  "allowScripts": {
+    "@swc/core@1.15.43": true,
+    "esbuild@0.28.1": true,
+    "msgpackr-extract@3.0.4": true
   }
 }

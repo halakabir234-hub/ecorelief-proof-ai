@@ -1,0 +1,116 @@
+/**
+ * EcoRelief Proof AI — privacy-preserving disaster-relief claim contract.
+ *
+ * Applicant assessment answers never appear as circuit arguments or ledger
+ * fields. Only a locally-computed commitment (over the private assessment,
+ * a deterministic ML result, and the model version) and safe verification
+ * metadata are ever disclosed to the public ledger.
+ *
+ * Status codes: 0 Submitted, 1 Under Review, 2 Approved, 3 Rejected, 4 Processed.
+ * Rejected and Processed are terminal — no circuit transitions out of them.
+ */
+
+pragma language_version 0.23;
+
+import CompactStandardLibrary;
+
+struct ClaimRecord {
+  status: Uint<8>,
+  claimCommitment: Bytes<32>,
+  eventCodeHash: Bytes<32>,
+  modelVersionHash: Bytes<32>,
+  priorityBand: Uint<8>
+}
+
+export ledger claims: Map<Uint<64>, ClaimRecord>;
+export ledger usedNullifiers: Map<Bytes<32>, Boolean>;
+export ledger claimCount: Counter;
+export ledger verifierAuthority: Bytes<32>;
+
+constructor(verifierHash: Bytes<32>) {
+  verifierAuthority = disclose(verifierHash);
+}
+
+witness getApplicantSecret(): Bytes<32>;
+witness getVerifierSecret(): Bytes<32>;
+
+export circuit applicantNullifier(secret: Bytes<32>, eventCodeHash: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<3, Bytes<32>>>([pad(32, "ecorelief:nullifier:"), secret, eventCodeHash]);
+}
+
+export circuit verifierCommitment(secret: Bytes<32>): Bytes<32> {
+  return persistentHash<Vector<2, Bytes<32>>>([pad(32, "ecorelief:verifier:"), secret]);
+}
+
+export circuit submitClaim(
+  claimCommitment: Bytes<32>,
+  eventCodeHash: Bytes<32>,
+  modelVersionHash: Bytes<32>,
+  priorityBand: Uint<8>
+): Uint<64> {
+  const secret = getApplicantSecret();
+  const nullifier = disclose(applicantNullifier(secret, eventCodeHash));
+  assert(!usedNullifiers.member(nullifier), "duplicate claim for this applicant and event");
+  usedNullifiers.insert(nullifier, disclose(true));
+
+  claimCount.increment(1);
+  const claimId = disclose(claimCount.read() as Uint<64>);
+
+  claims.insert(claimId, ClaimRecord {
+    status: disclose(0 as Uint<8>),
+    claimCommitment: disclose(claimCommitment),
+    eventCodeHash: disclose(eventCodeHash),
+    modelVersionHash: disclose(modelVersionHash),
+    priorityBand: disclose(priorityBand)
+  });
+
+  return claimId;
+}
+
+export circuit moveToReview(claimId: Uint<64>): [] {
+  const secret = getVerifierSecret();
+  const callerHash = verifierCommitment(secret);
+  assert(callerHash == verifierAuthority, "not authorized verifier");
+  assert(claims.member(disclose(claimId)), "claim not found");
+  const entry = claims.lookup(disclose(claimId));
+  assert(entry.status == (0 as Uint<8>), "claim not in submitted state");
+  claims.insert(disclose(claimId), ClaimRecord { ...entry, status: disclose(1 as Uint<8>) });
+}
+
+export circuit approveClaim(claimId: Uint<64>): [] {
+  const secret = getVerifierSecret();
+  const callerHash = verifierCommitment(secret);
+  assert(callerHash == verifierAuthority, "not authorized verifier");
+  assert(claims.member(disclose(claimId)), "claim not found");
+  const entry = claims.lookup(disclose(claimId));
+  assert(entry.status == (1 as Uint<8>), "claim not under review");
+  claims.insert(disclose(claimId), ClaimRecord { ...entry, status: disclose(2 as Uint<8>) });
+}
+
+export circuit rejectClaim(claimId: Uint<64>): [] {
+  const secret = getVerifierSecret();
+  const callerHash = verifierCommitment(secret);
+  assert(callerHash == verifierAuthority, "not authorized verifier");
+  assert(claims.member(disclose(claimId)), "claim not found");
+  const entry = claims.lookup(disclose(claimId));
+  assert(entry.status == (1 as Uint<8>), "claim not under review");
+  claims.insert(disclose(claimId), ClaimRecord { ...entry, status: disclose(3 as Uint<8>) });
+}
+
+export circuit markProcessed(claimId: Uint<64>): [] {
+  const secret = getVerifierSecret();
+  const callerHash = verifierCommitment(secret);
+  assert(callerHash == verifierAuthority, "not authorized verifier");
+  assert(claims.member(disclose(claimId)), "claim not found");
+  const entry = claims.lookup(disclose(claimId));
+  assert(entry.status == (2 as Uint<8>), "claim not approved");
+  claims.insert(disclose(claimId), ClaimRecord { ...entry, status: disclose(4 as Uint<8>) });
+}
+
+export circuit verifyClaimOwnership(claimId: Uint<64>): [] {
+  assert(claims.member(disclose(claimId)), "claim not found");
+  const entry = claims.lookup(disclose(claimId));
+  const secret = getApplicantSecret();
+  const nullifier = disclose(applicantNullifier(secret, entry.eventCodeHash));
+  assert(usedNullifiers.member(nullifier), "not the claim owner");
+}

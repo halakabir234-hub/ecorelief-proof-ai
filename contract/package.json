@@ -14,7 +14,12 @@
   },
   "scripts": {
     "compact": "compact compile leaderboard.compact managed/leaderboard",
+    "compact:ecorelief": "compact compile ecorelief.compact managed/ecorelief",
     "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -Rf ./managed ./dist/managed",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:ecorelief": "vitest run test/ecorelief.test.ts"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
   }
 }
