@@ -5,11 +5,20 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "managed"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./ecorelief": {
+      "types": "./dist/ecorelief.d.ts",
+      "import": "./dist/ecorelief.js",
+      "default": "./dist/ecorelief.js"
     }
   },
   "scripts": {
@@ -18,6 +27,9 @@
     "build": "rm -rf dist && tsc --project tsconfig.build.json && cp -Rf ./managed ./dist/managed",
     "test": "vitest run",
     "test:ecorelief": "vitest run test/ecorelief.test.ts"
+  },
+  "dependencies": {
+    "@midnight-ntwrk/compact-js": "2.5.1"
   },
   "devDependencies": {
     "vitest": "^4.1.11"

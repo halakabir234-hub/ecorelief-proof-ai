@@ -7,7 +7,6 @@
  * @packageDocumentation
  */
 
-import * as Leaderboard from '../../contract/managed/leaderboard/contract/index.js';
 import { type ContractAddress } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
 import { type Logger } from 'pino';
 import {
@@ -17,8 +16,13 @@ import {
   type DeployedLeaderboardContract,
   leaderboardPrivateStateKey,
 } from './common-types.js';
-import { CompiledLeaderboardContract, createLeaderboardPrivateState, type LeaderboardPrivateState } from '../../contract/src/index';
-import { setCustomName } from '../../contract/src/witnesses.js';
+import {
+  Leaderboard,
+  CompiledLeaderboardContract,
+  createLeaderboardPrivateState,
+  setCustomName,
+  type LeaderboardPrivateState,
+} from 'leaderboard-contract';
 import * as utils from './utils/index.js';
 import { deployContract, findDeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { map, type Observable } from 'rxjs';

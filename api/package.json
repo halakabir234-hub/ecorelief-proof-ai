@@ -6,8 +6,37 @@
   "module": "./dist/index.js",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./ecorelief": {
+      "types": "./dist/ecorelief-index.d.ts",
+      "import": "./dist/ecorelief-index.js",
+      "default": "./dist/ecorelief-index.js"
+    }
+  },
   "scripts": {
     "build": "rm -rf dist && tsc --project tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "smoke:ecorelief-subpath": "node scripts/smoke-ecorelief-subpath.mjs",
+    "smoke:root-entry": "node scripts/smoke-root-entry.mjs"
+  },
+  "dependencies": {
+    "leaderboard-contract": "0.1.0",
+    "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
+    "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
+    "@midnight-ntwrk/midnight-js-types": "4.1.1",
+    "pino": "^10.3.1",
+    "rxjs": "^7.8.2"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.11"
   }
 }
