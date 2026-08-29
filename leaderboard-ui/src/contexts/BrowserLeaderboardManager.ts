@@ -6,19 +6,17 @@
 
 import { LeaderboardAPI, type LeaderboardCircuitKeys, type LeaderboardProviders } from '../../../api/src/index';
 import { type ContractAddress, fromHex, toHex } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
-import { BehaviorSubject, catchError, concatMap, filter, firstValueFrom, interval, map, type Observable, take, throwError, timeout } from 'rxjs';
-import { pipe as fnPipe } from 'fp-ts/function';
+import { BehaviorSubject, type Observable } from 'rxjs';
 import { type Logger } from 'pino';
-import { type ConnectedAPI, type InitialAPI } from '@midnight-ntwrk/dapp-connector-api';
 import { FetchZkConfigProvider } from '@midnight-ntwrk/midnight-js-fetch-zk-config-provider';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
-import semver from 'semver';
 import { Binding, type FinalizedTransaction, Proof, SignatureEnabled, Transaction, type TransactionId } from '@midnight-ntwrk/midnight-js-protocol/ledger';
 import { type LeaderboardPrivateState } from 'leaderboard-contract';
 import { inMemoryPrivateStateProvider } from '../in-memory-private-state-provider';
 import { type NetworkId, setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import type { UnboundTransaction } from '@midnight-ntwrk/midnight-js-types';
+import { connectToWallet } from '../lib/wallet-connect';
 
 export type LeaderboardDeployment =
   | { readonly status: 'in-progress' }
@@ -95,8 +93,6 @@ export class BrowserLeaderboardManager {
 
 // ── Provider initialization ────────────────────────────────────────────
 
-const COMPATIBLE_CONNECTOR_API_VERSION = '4.x';
-
 const initializeProviders = async (logger: Logger): Promise<LeaderboardProviders> => {
   const networkId = import.meta.env.VITE_NETWORK_ID as NetworkId;
   setNetworkId(networkId);
@@ -128,28 +124,3 @@ const initializeProviders = async (logger: Logger): Promise<LeaderboardProviders
     },
   };
 };
-
-// ── Wallet detection ───────────────────────────────────────────────────
-
-const getFirstCompatibleWallet = (): InitialAPI | undefined => {
-  if (!window.midnight) return undefined;
-  return Object.values(window.midnight).find(
-    (wallet): wallet is InitialAPI =>
-      !!wallet && typeof wallet === 'object' && 'apiVersion' in wallet &&
-      semver.satisfies(wallet.apiVersion, COMPATIBLE_CONNECTOR_API_VERSION),
-  );
-};
-
-const connectToWallet = (logger: Logger, networkId: string): Promise<ConnectedAPI> =>
-  firstValueFrom(
-    fnPipe(
-      interval(100),
-      map(() => getFirstCompatibleWallet()),
-      filter((api): api is InitialAPI => !!api),
-      take(1),
-      timeout({ first: 3_000, with: () => throwError(() => new Error('Could not find Midnight Lace wallet.')) }),
-      concatMap(async (initialAPI) => initialAPI.connect(networkId)),
-      timeout({ first: 5_000, with: () => throwError(() => new Error('Lace wallet failed to respond.')) }),
-      catchError((error) => throwError(() => error instanceof Error ? error : new Error('Wallet not authorized'))),
-    ),
-  );

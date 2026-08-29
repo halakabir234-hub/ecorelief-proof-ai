@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import wasm from 'vite-plugin-wasm';
 import topLevelAwait from 'vite-plugin-top-level-await';
+import { resolve } from 'node:path';
 
 export default defineConfig({
   cacheDir: './.vite',
@@ -9,6 +10,10 @@ export default defineConfig({
     target: 'esnext',
     minify: false,
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        ecorelief: resolve(__dirname, 'ecorelief.html'),
+      },
       output: {
         manualChunks: {
           wasm: ['@midnight-ntwrk/onchain-runtime-v3'],

@@ -9,8 +9,8 @@
     "leaderboard-ui"
   ],
   "scripts": {
-    "compile": "cd contract && npm run compact",
-    "build": "cd contract && npm run build && cd ../api && npm run build"
+    "compile": "cd contract && npm run compact && npm run compact:ecorelief",
+    "build": "cd contract && npm run build && cd ../api && npm run build && cd ../leaderboard-ui && npm run build"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^5.1.4",

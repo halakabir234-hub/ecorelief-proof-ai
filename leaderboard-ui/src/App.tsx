@@ -10,6 +10,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { InitialAPI, ConnectedAPI } from '@midnight-ntwrk/dapp-connector-api';
 import { useLeaderboard } from './hooks/useLeaderboard';
 import { BrowserLeaderboardManager } from './contexts/BrowserLeaderboardManager';
+import { pollForAnyWallet } from './lib/wallet-connect';
+import { friendlyError as sharedFriendlyError, type ErrorRule } from './lib/friendly-error';
 import pino from 'pino';
 
 const NETWORK_ID = import.meta.env.VITE_NETWORK_ID ?? 'preprod';
@@ -18,14 +20,6 @@ const DEFAULT_CONTRACT = import.meta.env.VITE_DEFAULT_CONTRACT ?? '';
 enum DisplayMode { PUBLIC = 0, ANONYMOUS = 1, CUSTOM = 2 }
 
 type WalletState = 'detecting' | 'no-wallet' | 'ready' | 'connecting' | 'connected';
-
-function findWallet(): InitialAPI | undefined {
-  const midnight = (window as any).midnight;
-  if (!midnight) return undefined;
-  return Object.values(midnight).find(
-    (w): w is InitialAPI => !!w && typeof w === 'object' && 'apiVersion' in w,
-  );
-}
 
 function truncAddr(addr: string): string {
   return addr.length <= 24 ? addr : `${addr.slice(0, 14)}…${addr.slice(-8)}`;
@@ -40,33 +34,15 @@ async function copyToClipboard(text: string): Promise<boolean> {
   catch { return false; }
 }
 
-function friendlyError(e: any): string {
-  // Extract message from nested Effect-TS FiberFailure errors
-  const msg = extractErrorMessage(e);
-  if (msg.includes('User rejected')) return 'Transaction cancelled.';
-  if (msg.includes('not the owner')) return 'This entry does not belong to your wallet.';
-  if (msg.includes('entry not found')) return 'Entry not found on the leaderboard.';
-  if (msg.includes('Failed to fetch') || msg.includes('Failed Proof Server')) return 'Could not reach the proof server. Check your connection and try again.';
-  if (msg.includes('mismatched verifier keys')) return 'Contract version mismatch. Try deploying a new leaderboard.';
-  if (msg.includes('not authorized')) return 'Wallet connection was rejected. Try connecting again.';
-  if (msg.includes('insufficient') || msg.includes('DUST')) return 'Insufficient funds. Request tokens from the Preprod faucet.';
-  if (msg.includes('Network ID')) return 'Network configuration error. Make sure Lace is set to Preprod.';
-  if (msg.includes('submission') || msg.includes('Submission')) return 'Transaction failed to submit. Please try again.';
-  return msg || 'An unexpected error occurred. Check the browser console for details.';
-}
+// Leaderboard's own two error rules, preserved verbatim and checked before
+// the shared base rules (see friendlyError's extraRules ordering).
+const LEADERBOARD_ERROR_RULES: ErrorRule[] = [
+  { test: (m) => m.includes('not the owner'), message: 'This entry does not belong to your wallet.' },
+  { test: (m) => m.includes('entry not found'), message: 'Entry not found on the leaderboard.' },
+];
 
-function extractErrorMessage(e: any): string {
-  if (!e) return '';
-  // Direct message
-  if (e.message && e.message !== '') return e.message;
-  // Effect-TS FiberFailure: error.cause.failure.message or .cause.message
-  const failure = e?.cause?.failure;
-  if (failure?.message) return failure.message;
-  if (failure?.cause?.message) return failure.cause.message;
-  // Nested cause chain
-  if (e?.cause?.message) return e.cause.message;
-  // Stringify as last resort
-  try { return JSON.stringify(e); } catch { return String(e); }
+function friendlyError(e: unknown): string {
+  return sharedFriendlyError(e, LEADERBOARD_ERROR_RULES);
 }
 
 export default function App() {
@@ -114,18 +90,10 @@ export default function App() {
 
   // ── Wallet detection ─────────────────────────────────────────────────
 
-  useEffect(() => {
-    const found = findWallet();
-    if (found) { setWalletAPI(found); setWalletState('ready'); return; }
-    let elapsed = 0;
-    const t = setInterval(() => {
-      elapsed += 100;
-      const w = findWallet();
-      if (w) { setWalletAPI(w); setWalletState('ready'); clearInterval(t); }
-      else if (elapsed >= 5_000) { setWalletState('no-wallet'); clearInterval(t); }
-    }, 100);
-    return () => clearInterval(t);
-  }, []);
+  useEffect(() => pollForAnyWallet(
+    (w) => { setWalletAPI(w); setWalletState('ready'); },
+    () => setWalletState('no-wallet'),
+  ), []);
 
   // ── Wallet connect ───────────────────────────────────────────────────
 

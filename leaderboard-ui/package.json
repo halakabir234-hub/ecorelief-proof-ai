@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "mkdir -p ./public/keys ./public/zkir && cp -r ../contract/managed/leaderboard/keys/* ./public/keys/ && cp -r ../contract/managed/leaderboard/zkir/* ./public/zkir/ && vite",
-    "build": "tsc && vite build --mode preprod && cp -r ../contract/managed/leaderboard/keys ./dist/keys && cp -r ../contract/managed/leaderboard/zkir ./dist/zkir",
-    "preview": "vite preview"
+    "dev": "mkdir -p ./public/keys ./public/zkir ./public/ecorelief/keys ./public/ecorelief/zkir && cp -r ../contract/managed/leaderboard/keys/* ./public/keys/ && cp -r ../contract/managed/leaderboard/zkir/* ./public/zkir/ && cp -r ../contract/managed/ecorelief/keys/* ./public/ecorelief/keys/ && cp -r ../contract/managed/ecorelief/zkir/* ./public/ecorelief/zkir/ && vite",
+    "build": "tsc && vite build --mode preprod && cp -r ../contract/managed/leaderboard/keys ./dist/keys && cp -r ../contract/managed/leaderboard/zkir ./dist/zkir && mkdir -p ./dist/ecorelief && cp -r ../contract/managed/ecorelief/keys ./dist/ecorelief/keys && cp -r ../contract/managed/ecorelief/zkir ./dist/ecorelief/zkir",
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
+    "@midnight-ntwrk/leaderboard-api": "*",
     "@midnight-ntwrk/dapp-connector-api": "4.0.1",
     "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
     "@midnight-ntwrk/midnight-js-fetch-zk-config-provider": "4.1.1",
@@ -32,9 +34,11 @@
     "@types/react-dom": "^19.0.0",
     "@types/semver": "^7.7.1",
     "@vitejs/plugin-react": "^5.1.4",
+    "jsdom": "^25.0.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
     "vite-plugin-top-level-await": "^1.6.0",
-    "vite-plugin-wasm": "^3.5.0"
+    "vite-plugin-wasm": "^3.5.0",
+    "vitest": "^4.1.11"
   }
 }
