@@ -12,14 +12,19 @@
 
 export class EcoReliefConfigError extends Error {}
 
-/** This project only ever targets Preprod — not merely "any non-empty string". */
-export type ValidatedNetworkId = 'preprod';
+/**
+ * This project targets Preprod or a local "undeployed" standalone network
+ * (node + indexer + proof server run via Docker on localhost) — not merely
+ * "any non-empty string". 'undeployed' is the Midnight SDK's own documented
+ * default/local-network identifier (see @midnight-ntwrk/midnight-js-network-id).
+ */
+export type ValidatedNetworkId = 'preprod' | 'undeployed';
 
 export function assertValidNetworkId(value: unknown): asserts value is ValidatedNetworkId {
-  if (value !== 'preprod') {
+  if (value !== 'preprod' && value !== 'undeployed') {
     const shown = typeof value === 'string' ? JSON.stringify(value) : String(value);
     throw new EcoReliefConfigError(
-      `VITE_NETWORK_ID must be exactly "preprod" for this project — got ${shown}. Check your .env file.`,
+      `Network ID must be "preprod" or "undeployed" — got ${shown}. Check your .env file.`,
     );
   }
 }
@@ -30,7 +35,22 @@ export interface ValidatedWalletConfig {
   readonly proverServerUri: string;
 }
 
-function assertUrlWithProtocol(value: unknown, protocol: 'https:' | 'wss:', fieldLabel: string): void {
+const LOOPBACK_HOSTNAMES = new Set(['localhost', '127.0.0.1', '::1']);
+
+/**
+ * Requires `secureProtocol` (https:/wss:) everywhere, except on loopback
+ * hosts (localhost/127.0.0.1/::1) where the plain `insecureProtocol`
+ * (http:/ws:) is also accepted — the local "undeployed" Docker network
+ * (node/indexer/proof server) is only ever reachable over plain HTTP/WS.
+ * Preprod/production endpoints are never loopback, so this never weakens
+ * the check for them.
+ */
+function assertUrlWithProtocol(
+  value: unknown,
+  secureProtocol: 'https:' | 'wss:',
+  insecureProtocol: 'http:' | 'ws:',
+  fieldLabel: string,
+): void {
   if (typeof value !== 'string' || value.length === 0) {
     throw new EcoReliefConfigError(`Lace did not return a ${fieldLabel} — check Lace's network settings.`);
   }
@@ -40,8 +60,12 @@ function assertUrlWithProtocol(value: unknown, protocol: 'https:' | 'wss:', fiel
   } catch {
     throw new EcoReliefConfigError(`Lace returned a malformed ${fieldLabel}: ${value}`);
   }
-  if (parsed.protocol !== protocol) {
-    throw new EcoReliefConfigError(`${fieldLabel} must use ${protocol} — got ${parsed.protocol} (${value})`);
+  const isLoopback = LOOPBACK_HOSTNAMES.has(parsed.hostname);
+  const allowed = isLoopback ? [secureProtocol, insecureProtocol] : [secureProtocol];
+  if (!allowed.includes(parsed.protocol as 'https:' | 'wss:' | 'http:' | 'ws:')) {
+    throw new EcoReliefConfigError(
+      `${fieldLabel} must use ${allowed.join(' or ')} — got ${parsed.protocol} (${value})`,
+    );
   }
 }
 
@@ -56,9 +80,9 @@ export function assertValidWalletConfig(config: {
   readonly indexerWsUri?: string;
   readonly proverServerUri?: string;
 }): asserts config is ValidatedWalletConfig {
-  assertUrlWithProtocol(config.indexerUri, 'https:', 'indexer URL');
-  assertUrlWithProtocol(config.indexerWsUri, 'wss:', 'indexer websocket URL');
-  assertUrlWithProtocol(config.proverServerUri, 'https:', 'proof server URL');
+  assertUrlWithProtocol(config.indexerUri, 'https:', 'http:', 'indexer URL');
+  assertUrlWithProtocol(config.indexerWsUri, 'wss:', 'ws:', 'indexer websocket URL');
+  assertUrlWithProtocol(config.proverServerUri, 'https:', 'http:', 'proof server URL');
 }
 
 const CONTRACT_ADDRESS_PATTERN = /^[0-9a-fA-F]{64}$/;

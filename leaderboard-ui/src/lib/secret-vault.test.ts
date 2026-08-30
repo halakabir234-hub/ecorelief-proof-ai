@@ -5,6 +5,7 @@ import {
   decryptVaultToSecret,
   parseAndValidateEnvelope,
   assertPassphraseStrength,
+  fingerprintSecret,
   zeroize,
   hasVault,
   loadVaultEnvelope,
@@ -39,6 +40,30 @@ describe('generateSessionSecret', () => {
     expect(a).toHaveLength(32);
     expect(b).toHaveLength(32);
     expect(bytesToHex(a)).not.toBe(bytesToHex(b));
+  });
+});
+
+describe('fingerprintSecret', () => {
+  it('produces an 8-character hex string', async () => {
+    const fp = await fingerprintSecret(generateSessionSecret());
+    expect(fp).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it('is deterministic for the same secret', async () => {
+    const secret = generateSessionSecret();
+    expect(await fingerprintSecret(secret)).toBe(await fingerprintSecret(secret));
+  });
+
+  it('differs for different secrets (overwhelmingly likely)', async () => {
+    const a = await fingerprintSecret(generateSessionSecret());
+    const b = await fingerprintSecret(generateSessionSecret());
+    expect(a).not.toBe(b);
+  });
+
+  it('does not equal a raw hex prefix of the secret (it is hashed, not truncated)', async () => {
+    const secret = generateSessionSecret();
+    const fp = await fingerprintSecret(secret);
+    expect(fp).not.toBe(bytesToHex(secret).slice(0, 8));
   });
 });
 

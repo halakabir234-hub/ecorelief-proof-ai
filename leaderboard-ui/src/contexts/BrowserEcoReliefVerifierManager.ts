@@ -24,6 +24,7 @@ import {
   clearVault,
   hasVault,
   zeroize,
+  fingerprintSecret,
 } from '../lib/secret-vault';
 import { assertValidContractAddress } from '../lib/runtime-config';
 
@@ -56,6 +57,11 @@ export class BrowserEcoReliefVerifierManager {
   secretStatus(): EcoReliefSecretStatus {
     if (this.#secret) return 'unlocked';
     return hasVault(VERIFIER_VAULT_STORAGE_KEY) ? 'locked' : 'no-vault';
+  }
+
+  /** Short non-secret display fingerprint of the active identity, or undefined if none is unlocked. */
+  fingerprint(): Promise<string> | undefined {
+    return this.#secret ? fingerprintSecret(this.#secret) : undefined;
   }
 
   async unlock(passphrase: string): Promise<void> {

@@ -18,9 +18,10 @@ export default function VerifierHarness() {
   }, []);
 
   const [secretStatus, setSecretStatus] = useState(() => getManager().secretStatus());
+  const [fingerprint, setFingerprint] = useState<string | undefined>(undefined);
   const [connection, setConnection] = useState<EcoReliefVerifierConnection>({ status: 'idle' });
   const [log, setLog] = useState<string[]>([]);
-  const [contractAddress, setContractAddress] = useState('');
+  const [contractAddress, setContractAddress] = useState(() => import.meta.env.VITE_ECORELIEF_CONTRACT_ADDRESS ?? '');
   const [passphrase, setPassphrase] = useState('');
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [unlockPassphrase, setUnlockPassphrase] = useState('');
@@ -41,7 +42,19 @@ export default function VerifierHarness() {
     return () => sub.unsubscribe();
   }, [connection, appendLog]);
 
-  const refreshSecretStatus = useCallback(() => setSecretStatus(getManager().secretStatus()), [getManager]);
+  const refreshSecretStatus = useCallback(() => {
+    setSecretStatus(getManager().secretStatus());
+    const pending = getManager().fingerprint();
+    if (!pending) {
+      setFingerprint(undefined);
+      return;
+    }
+    void pending.then(setFingerprint);
+  }, [getManager]);
+
+  useEffect(() => {
+    refreshSecretStatus();
+  }, [refreshSecretStatus]);
 
   const handleUnlock = useCallback(async () => {
     try {
@@ -121,7 +134,7 @@ export default function VerifierHarness() {
       </div>
 
       <div className="eh-section">
-        <h3>Verifier Identity ({secretStatus})</h3>
+        <h3>Verifier Identity ({secretStatus}){fingerprint ? ` — #${fingerprint}` : ''}</h3>
         {secretStatus === 'locked' && (
           <div className="eh-row">
             <input

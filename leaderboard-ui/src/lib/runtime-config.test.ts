@@ -12,7 +12,11 @@ describe('assertValidNetworkId', () => {
     expect(() => assertValidNetworkId('preprod')).not.toThrow();
   });
 
-  it.each([undefined, null, '', 'testnet', 'PREPROD', 'preprod ', 123])(
+  it('accepts exactly "undeployed" (local standalone network)', () => {
+    expect(() => assertValidNetworkId('undeployed')).not.toThrow();
+  });
+
+  it.each([undefined, null, '', 'testnet', 'PREPROD', 'preprod ', 'UNDEPLOYED', 'undeployed ', 123])(
     'rejects %p',
     (value) => {
       expect(() => assertValidNetworkId(value)).toThrow(EcoReliefConfigError);
@@ -63,6 +67,22 @@ describe('assertValidWalletConfig', () => {
 
   it('rejects a malformed URL string', () => {
     expect(() => assertValidWalletConfig({ ...valid, proverServerUri: 'not a url' })).toThrow(EcoReliefConfigError);
+  });
+
+  it('accepts plain http/ws on loopback hosts (the local undeployed network)', () => {
+    expect(() =>
+      assertValidWalletConfig({
+        indexerUri: 'http://localhost:8088/api/v1/graphql',
+        indexerWsUri: 'ws://127.0.0.1:8088/api/v1/graphql/ws',
+        proverServerUri: 'http://localhost:6300',
+      }),
+    ).not.toThrow();
+  });
+
+  it('still rejects plain http on a non-loopback host', () => {
+    expect(() =>
+      assertValidWalletConfig({ ...valid, proverServerUri: 'http://zk-leaderboard.example.com' }),
+    ).toThrow(EcoReliefConfigError);
   });
 });
 

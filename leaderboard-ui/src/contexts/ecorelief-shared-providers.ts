@@ -24,7 +24,10 @@ import type { UnboundTransaction } from '@midnight-ntwrk/midnight-js-types';
 import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { type EcoReliefCircuitKeys } from '@midnight-ntwrk/leaderboard-api/ecorelief';
 import { connectToWallet } from '../lib/wallet-connect';
+import { connectLocalWallet, type WsConnectedWallet } from '../lib/ws-wallet-connector';
 import { assertValidNetworkId, assertValidWalletConfig } from '../lib/runtime-config';
+
+const DEFAULT_LOCAL_WALLET_WS_URL = 'ws://localhost:9932';
 
 export interface EcoReliefBaseProviders {
   readonly zkConfigProvider: FetchZkConfigProvider<EcoReliefCircuitKeys>;
@@ -50,11 +53,23 @@ export function ecoReliefZkConfigBaseUrl(): string {
 }
 
 export async function createEcoReliefBaseProviders(logger: Logger): Promise<EcoReliefBaseProviders> {
-  const rawNetworkId = import.meta.env.VITE_NETWORK_ID;
+  // EcoRelief-specific override so it can target the local "undeployed"
+  // network independently of the leaderboard demo's own VITE_NETWORK_ID.
+  const rawNetworkId = import.meta.env.VITE_ECORELIEF_NETWORK_ID ?? import.meta.env.VITE_NETWORK_ID;
   assertValidNetworkId(rawNetworkId);
   setNetworkId(rawNetworkId);
 
-  const connectedAPI = await connectToWallet(logger, rawNetworkId);
+  // Local dev only: the "undeployed" network has no Lace support, so connect
+  // to a real local wallet connector (`midnight serve`) over WebSocket
+  // JSON-RPC instead of scanning window.midnight. Preprod/production always
+  // goes through the unchanged Lace browser-extension path below.
+  const connectedAPI: WsConnectedWallet =
+    rawNetworkId === 'undeployed'
+      ? await connectLocalWallet(
+          import.meta.env.VITE_ECORELIEF_LOCAL_WALLET_WS_URL ?? DEFAULT_LOCAL_WALLET_WS_URL,
+          rawNetworkId,
+        )
+      : await connectToWallet(logger, rawNetworkId);
   const config = await connectedAPI.getConfiguration();
   assertValidWalletConfig(config);
   const shieldedAddresses = await connectedAPI.getShieldedAddresses();

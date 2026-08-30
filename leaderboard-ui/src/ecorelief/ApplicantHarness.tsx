@@ -8,6 +8,7 @@ import { assertValidContractAddress } from '../lib/runtime-config';
 
 export default function ApplicantHarness() {
   const managerRef = useRef<BrowserEcoReliefApplicantManager | null>(null);
+  const isVerifyingRef = useRef(false);
   const getManager = useCallback(() => {
     if (!managerRef.current) {
       const logger = pino({ level: 'warn', browser: { asObject: true } });
@@ -17,9 +18,10 @@ export default function ApplicantHarness() {
   }, []);
 
   const [secretStatus, setSecretStatus] = useState(() => getManager().secretStatus());
+  const [fingerprint, setFingerprint] = useState<string | undefined>(undefined);
   const [connection, setConnection] = useState<EcoReliefApplicantConnection>({ status: 'idle' });
   const [log, setLog] = useState<string[]>([]);
-  const [contractAddress, setContractAddress] = useState('');
+  const [contractAddress, setContractAddress] = useState(() => import.meta.env.VITE_ECORELIEF_CONTRACT_ADDRESS ?? '');
   const [passphrase, setPassphrase] = useState('');
   const [confirmPassphrase, setConfirmPassphrase] = useState('');
   const [unlockPassphrase, setUnlockPassphrase] = useState('');
@@ -28,6 +30,7 @@ export default function ApplicantHarness() {
   const [modelVersionHash, setModelVersionHash] = useState('');
   const [priorityBand, setPriorityBand] = useState('0');
   const [claimIdInput, setClaimIdInput] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const appendLog = useCallback((line: string) => {
     setLog((prev) => [...prev.slice(-49), line]);
@@ -44,7 +47,19 @@ export default function ApplicantHarness() {
     return () => sub.unsubscribe();
   }, [connection, appendLog]);
 
-  const refreshSecretStatus = useCallback(() => setSecretStatus(getManager().secretStatus()), [getManager]);
+  const refreshSecretStatus = useCallback(() => {
+    setSecretStatus(getManager().secretStatus());
+    const pending = getManager().fingerprint();
+    if (!pending) {
+      setFingerprint(undefined);
+      return;
+    }
+    void pending.then(setFingerprint);
+  }, [getManager]);
+
+  useEffect(() => {
+    refreshSecretStatus();
+  }, [refreshSecretStatus]);
 
   const handleUnlock = useCallback(async () => {
     try {
@@ -118,16 +133,26 @@ export default function ApplicantHarness() {
   }, [connection, claimCommitment, eventCodeHash, modelVersionHash, priorityBand, appendLog]);
 
   const handleVerifyOwnership = useCallback(async () => {
+    // Synchronous ref guard: immune to React's async state batching, so a
+    // second click landing before re-render still can't start a second,
+    // overlapping verifyClaimOwnership call (which was racing two
+    // balanceUnsealedTransaction requests against the same wallet UTXOs).
+    if (isVerifyingRef.current) return;
     if (connection.status !== 'connected') {
       appendLog('ERROR: not connected.');
       return;
     }
+    isVerifyingRef.current = true;
+    setIsVerifying(true);
     try {
       const claimId = BigInt(claimIdInput);
       await connection.api.verifyClaimOwnership(claimId);
       appendLog(`verifyClaimOwnership OK for claimId=${claimIdInput}`);
     } catch (e) {
       appendLog(`ERROR verifyClaimOwnership: ${friendlyError(e, ECORELIEF_ERROR_RULES)}`);
+    } finally {
+      isVerifyingRef.current = false;
+      setIsVerifying(false);
     }
   }, [connection, claimIdInput, appendLog]);
 
@@ -140,7 +165,7 @@ export default function ApplicantHarness() {
       </div>
 
       <div className="eh-section">
-        <h3>Applicant Identity ({secretStatus})</h3>
+        <h3>Applicant Identity ({secretStatus}){fingerprint ? ` — #${fingerprint}` : ''}</h3>
         {secretStatus === 'locked' && (
           <div className="eh-row">
             <input
@@ -227,8 +252,8 @@ export default function ApplicantHarness() {
         <h3>Verify Claim Ownership</h3>
         <div className="eh-row">
           <input placeholder="claimId" value={claimIdInput} onChange={(e) => setClaimIdInput(e.target.value)} />
-          <button onClick={handleVerifyOwnership} disabled={connection.status !== 'connected'}>
-            Verify Ownership
+          <button onClick={handleVerifyOwnership} disabled={connection.status !== 'connected' || isVerifying}>
+            {isVerifying ? 'Verifying…' : 'Verify Ownership'}
           </button>
         </div>
       </div>

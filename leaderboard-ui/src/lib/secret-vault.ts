@@ -211,6 +211,18 @@ export function generateSessionSecret(): Uint8Array {
   return crypto.getRandomValues(new Uint8Array(32));
 }
 
+/**
+ * A short, non-secret display fingerprint (first 4 bytes of SHA-256 of the
+ * secret, hex-encoded) so the UI can visibly confirm an identity actually
+ * changed after "Generate New Identity" — never reveals the secret itself.
+ */
+export async function fingerprintSecret(secret: Uint8Array): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', secret as BufferSource);
+  return Array.from(new Uint8Array(digest).slice(0, 4))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 /** Best-effort in-memory clearing. Does not guarantee the underlying memory is scrubbed (JS/GC offer no such guarantee), but drops the recoverable byte values from this array immediately. */
 export function zeroize(bytes: Uint8Array): void {
   bytes.fill(0);
